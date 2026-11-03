@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.streamlit/
+.venv/
+venv/
+.env
+data/processed/*.parquet
+data_*.xlsx
+static_data.xlsx
+

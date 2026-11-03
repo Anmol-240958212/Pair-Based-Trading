@@ -78,7 +78,7 @@ def load_static_data(data_dir: str | Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     for one Capitaline code, the master uses the first non-null value and the
     audit table records whether sector or industry classifications conflict.
     """
-    path = Path(data_dir) / "static_data.xlsx"
+    path = Path(data_dir) / "STATIC_DATA_SHARANYA.xlsx"
     static = _read_capitaline_excel(path, STATIC_COLUMNS)
     static["capitaline_code"] = pd.to_numeric(static["capitaline_code"], errors="coerce")
     static = static.dropna(subset=["capitaline_code"]).copy()

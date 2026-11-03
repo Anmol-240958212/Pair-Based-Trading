@@ -4,7 +4,8 @@
 
 - Loaded and standardised daily Capitaline data from 2015–2026.
 - Created a fast Parquet copy containing 528,295 price observations.
-- Joined price records to static company, sector and industry information.
+- Joined all 206 price-series companies to sector and industry information from
+  `STATIC_DATA_SHARANYA.xlsx`.
 - Added point-in-time data-coverage and liquidity eligibility filters.
 - Generated economically similar candidate pairs within the same industry.
 - Implemented Engle–Granger cointegration testing, hedge-ratio estimation,

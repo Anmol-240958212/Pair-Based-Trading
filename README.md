@@ -8,7 +8,7 @@ an interactive Streamlit application.
 - `notebooks/01_pair_research.ipynb` — readable exploratory research workflow
 - `app.py` — interactive company and pair explorer
 - `src/pairs_trading/` — reusable data, universe-selection, and statistical code
-- `data_*.xlsx` and `static_data.xlsx` — unmodified source files
+- `data_*.xlsx` and `STATIC_DATA_SHARANYA.xlsx` — unmodified source files
 
 ## Setup
 

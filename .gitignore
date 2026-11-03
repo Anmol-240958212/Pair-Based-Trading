@@ -5,7 +5,4 @@ __pycache__/
 .venv/
 venv/
 .env
-data/processed/*.parquet
-data_*.xlsx
-static_data.xlsx
 

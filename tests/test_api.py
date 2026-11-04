@@ -37,6 +37,22 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    def test_experiment2_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_development_not_locked_holdout",
+        )
+
+    def test_experiment3_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment3")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_daily_panel_development_not_locked_holdout",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

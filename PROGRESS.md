@@ -47,6 +47,23 @@
 - Defined the empirical scope as adjusted underlying equities belonging to the
   F&O universe; futures rolls, margins and lot sizes are intentionally outside
   scope rather than silently approximated.
+- Added a separately labelled Experiment 2 with boundary-safe entries, rolling
+  hedge ratios, formation and signal-date stability diagnostics, a reversion
+  classifier, expected-return regression, after-cost approval and
+  volatility-aware portfolio sizing.
+- Selected rolling rather than fixed hedging using only 2020-2021 validation
+  evidence (ROC-AUC 0.716 versus 0.422).
+- Evaluated Experiment 2 as a post-hoc 2022H1-2026H1 comparison. At 10 bps the
+  two-stage filter reduced the dynamic baseline loss from -5.69% to -1.19% and
+  drawdown from -9.04% to -2.79%, but remained unprofitable and insignificant
+  (permutation p = 0.787).
+- Added Experiment 3 with 90% formation coverage, 19,217 daily pair-level rows,
+  next-day execution and explicit 20-day take-profit/stop-loss barrier labels.
+- Compared Logistic Regression and histogram Gradient Boosting with purged,
+  label-available walk-forward training and non-overlapping portfolio rules.
+- The Experiment 3 Logistic portfolio is slightly positive at 10 bps (+0.89%,
+  Sharpe 0.155, drawdown -2.85%) but negative at 20 bps and statistically
+  insignificant under a moving-block bootstrap (p = 0.388).
 
 ## Initial Finding
 
@@ -62,3 +79,5 @@ while ABB–Siemens and Hindalco–National Aluminium were not.
 - Add exact intra-year F&O entry/removal dates if that source becomes available.
 - Treat any future feature or classifier changes as a new experiment; do not
   retune against the already-opened 2022H1-2026H1 test period.
+- Use completed 2026H2 or later observations as the next genuinely unseen
+  evaluation period.

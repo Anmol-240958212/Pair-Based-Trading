@@ -48,6 +48,18 @@ class PositionPathTests(unittest.TestCase):
         self.assertEqual(decisions.tolist(), [1, 1, 0])
         self.assertEqual(reasons[dates[2]], "mean_reversion")
 
+    def test_boundary_buffer_blocks_late_entries(self):
+        dates = pd.date_range("2020-01-01", periods=5, freq="D")
+        decisions, _ = _position_path(
+            pd.Series([0.0, 0.0, 2.5, 2.5, 2.5], index=dates),
+            entry_z=2.0,
+            exit_z=0.5,
+            stop_z=4.0,
+            maximum_holding_days=3,
+            minimum_entry_days_remaining=3,
+        )
+        self.assertEqual(decisions.tolist(), [0, 0, 0, 0, 0])
+
 
 if __name__ == "__main__":
     unittest.main()

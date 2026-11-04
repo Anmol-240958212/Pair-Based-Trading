@@ -1,0 +1,2 @@
+training_events,validation_events,approved_trades,approval_rate,reversion_accuracy,reversion_precision,reversion_recall,reversion_roc_auc,reversion_brier_score,return_mean_absolute_error,all_mean_trade_return,approved_mean_trade_return,approved_profit_rate
+54,55,4,0.07272727272727272,0.6181818181818182,0.92,0.5476190476190477,0.7161172161172162,0.2740586932384389,0.06290114964530379,0.01499894086366563,0.02392623744563621,1.0

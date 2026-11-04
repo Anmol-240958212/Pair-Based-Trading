@@ -128,6 +128,16 @@ def validation():
     return services.csv_records("ml_label_validation.csv")
 
 
+@app.get("/api/results/experiment2")
+def experiment2():
+    return services.experiment2_results()
+
+
+@app.get("/api/results/experiment3")
+def experiment3():
+    return services.experiment3_results()
+
+
 @app.get("/api/config")
 def config():
     return services.research_config()

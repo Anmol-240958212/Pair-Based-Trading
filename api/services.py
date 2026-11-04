@@ -255,3 +255,51 @@ def research_config() -> dict[str, Any]:
         "locked_test_start": LOCKED_TEST_START,
         "locked_test_end": LOCKED_TEST_END,
     }
+
+
+def experiment2_results() -> dict[str, Any]:
+    """Return explicitly post-hoc development results for the second experiment."""
+    return clean(
+        {
+            "interpretation": "post_hoc_development_not_locked_holdout",
+            "validation": pd.read_csv(PROCESSED / "experiment2_validation.csv").iloc[
+                0
+            ].to_dict(),
+            "significance": pd.read_csv(
+                PROCESSED / "experiment2_significance.csv"
+            ).iloc[0].to_dict(),
+            "portfolio": pd.read_csv(
+                PROCESSED / "experiment2_portfolio.csv"
+            ).to_dict(orient="records"),
+            "windows": pd.read_csv(
+                PROCESSED / "experiment2_summary.csv"
+            ).to_dict(orient="records"),
+        }
+    )
+
+
+def experiment3_results() -> dict[str, Any]:
+    """Return daily-panel development results without implying a fresh holdout."""
+    return clean(
+        {
+            "interpretation": "post_hoc_daily_panel_development_not_locked_holdout",
+            "panel": pd.read_csv(
+                PROCESSED / "experiment3_panel_summary.csv"
+            ).to_dict(orient="records"),
+            "validation": pd.read_csv(
+                PROCESSED / "experiment3_validation.csv"
+            ).to_dict(orient="records"),
+            "comparison": pd.read_csv(
+                PROCESSED / "experiment3_comparison.csv"
+            ).to_dict(orient="records"),
+            "portfolio": pd.read_csv(
+                PROCESSED / "experiment3_portfolio.csv"
+            ).to_dict(orient="records"),
+            "significance": pd.read_csv(
+                PROCESSED / "experiment3_significance.csv"
+            ).to_dict(orient="records"),
+            "windows": pd.read_csv(
+                PROCESSED / "experiment3_window_summary.csv"
+            ).to_dict(orient="records"),
+        }
+    )

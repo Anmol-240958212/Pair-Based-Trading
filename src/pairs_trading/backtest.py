@@ -34,6 +34,7 @@ def _position_path(
     exit_z: float,
     stop_z: float,
     maximum_holding_days: int,
+    minimum_entry_days_remaining: int = 0,
 ) -> tuple[pd.Series, dict[pd.Timestamp, str]]:
     """Generate end-of-day decisions; positions become active the next day."""
     state = 0
@@ -42,12 +43,16 @@ def _position_path(
     decisions: list[int] = []
     exit_reasons: dict[pd.Timestamp, str] = {}
 
-    for date, z_score in z_scores.items():
+    for index, (date, z_score) in enumerate(z_scores.items()):
         if state == 0:
             holding_days = 0
             if not entry_armed:
                 if abs(z_score) < entry_z:
                     entry_armed = True
+                decisions.append(state)
+                continue
+            days_remaining_after_signal = len(z_scores) - index - 1
+            if days_remaining_after_signal < minimum_entry_days_remaining:
                 decisions.append(state)
                 continue
             if entry_z <= z_score < stop_z:
@@ -71,6 +76,57 @@ def _position_path(
         decisions.append(state)
 
     return pd.Series(decisions, index=z_scores.index, dtype="int64"), exit_reasons
+
+
+def _rolling_relationship(
+    prices: pd.DataFrame,
+    left_code: int,
+    right_code: int,
+    formation_start: str | pd.Timestamp,
+    trading_end: str | pd.Timestamp,
+    trading_index: pd.Index,
+    lookback_days: int,
+) -> pd.DataFrame:
+    """Estimate each day's relationship using observations available before it."""
+    combined = prices.loc[
+        prices["date"].between(pd.Timestamp(formation_start), pd.Timestamp(trading_end))
+        & prices["capitaline_code"].isin([left_code, right_code]),
+        ["date", "capitaline_code", "close"],
+    ].pivot(index="date", columns="capitaline_code", values="close").dropna()
+    log_left = np.log(combined[left_code].astype(float))
+    log_right = np.log(combined[right_code].astype(float))
+    records: list[dict[str, float | pd.Timestamp]] = []
+    for date in trading_index:
+        available = combined.index < date
+        history_index = combined.index[available][-lookback_days:]
+        if len(history_index) < 60:
+            raise ValueError("Dynamic hedge estimation requires at least 60 prior observations.")
+        historical_left = log_left.loc[history_index]
+        historical_right = log_right.loc[history_index]
+        design = np.column_stack(
+            [np.ones(len(history_index)), historical_right.to_numpy()]
+        )
+        intercept, beta = np.linalg.lstsq(
+            design, historical_left.to_numpy(), rcond=None
+        )[0]
+        residual_history = historical_left - intercept - beta * historical_right
+        spread_standard_deviation = float(residual_history.std(ddof=1))
+        if spread_standard_deviation <= 0:
+            raise ValueError("Rolling spread standard deviation is not positive.")
+        current_spread = float(log_left.loc[date] - intercept - beta * log_right.loc[date])
+        records.append(
+            {
+                "date": pd.Timestamp(date),
+                "dynamic_intercept": float(intercept),
+                "dynamic_hedge_ratio": float(beta),
+                "spread": current_spread,
+                "z_score": float(
+                    (current_spread - residual_history.mean())
+                    / spread_standard_deviation
+                ),
+            }
+        )
+    return pd.DataFrame.from_records(records).set_index("date")
 
 
 def _trade_log(
@@ -130,6 +186,9 @@ def backtest_pair(
     stop_z: float = 4.0,
     maximum_holding_days: int = 60,
     transaction_cost_bps: float = 10.0,
+    minimum_entry_days_remaining: int = 0,
+    hedge_ratio_mode: str = "fixed",
+    hedge_lookback_days: int = 252,
 ) -> tuple[dict[str, float | int], pd.DataFrame, pd.DataFrame]:
     """Backtest fixed formation estimates on a strictly later trading window."""
     if pd.Timestamp(trading_start) <= pd.Timestamp(formation_end):
@@ -138,6 +197,12 @@ def backtest_pair(
         raise ValueError("Thresholds must satisfy 0 <= exit < entry < stop.")
     if maximum_holding_days < 1 or transaction_cost_bps < 0:
         raise ValueError("Holding days must be positive and transaction costs cannot be negative.")
+    if minimum_entry_days_remaining < 0:
+        raise ValueError("Minimum entry days remaining cannot be negative.")
+    if hedge_ratio_mode not in {"fixed", "rolling"}:
+        raise ValueError("Hedge ratio mode must be fixed or rolling.")
+    if hedge_lookback_days < 60:
+        raise ValueError("Hedge lookback must contain at least 60 observations.")
 
     formation_metrics, _ = analyze_pair(
         prices, left_code, right_code, formation_start, formation_end
@@ -152,16 +217,36 @@ def backtest_pair(
 
     log_left = np.log(matrix[left_code].astype(float))
     log_right = np.log(matrix[right_code].astype(float))
-    spread = log_left - intercept - beta * log_right
-    z_score = (spread - spread_mean) / spread_std
+    if hedge_ratio_mode == "rolling":
+        rolling = _rolling_relationship(
+            prices,
+            left_code,
+            right_code,
+            formation_start,
+            trading_end,
+            matrix.index,
+            hedge_lookback_days,
+        )
+        spread = rolling["spread"]
+        z_score = rolling["z_score"]
+        beta_series = rolling["dynamic_hedge_ratio"]
+    else:
+        spread = log_left - intercept - beta * log_right
+        z_score = (spread - spread_mean) / spread_std
+        beta_series = pd.Series(beta, index=matrix.index, dtype=float)
     decisions, exit_reasons = _position_path(
-        z_score, entry_z, exit_z, stop_z, maximum_holding_days
+        z_score,
+        entry_z,
+        exit_z,
+        stop_z,
+        maximum_holding_days,
+        minimum_entry_days_remaining,
     )
     position = decisions.shift(1, fill_value=0).astype("int64")
 
-    denominator = 1.0 + abs(beta)
+    denominator = 1.0 + beta_series.abs()
     left_weight = 1.0 / denominator
-    right_weight = -beta / denominator
+    right_weight = -beta_series / denominator
     left_return = matrix[left_code].pct_change().fillna(0.0)
     right_return = matrix[right_code].pct_change().fillna(0.0)
     gross_return = position * (left_weight * left_return + right_weight * right_return)
@@ -179,6 +264,7 @@ def backtest_pair(
             "right_close": matrix[right_code].to_numpy(),
             "spread": spread.to_numpy(),
             "z_score": z_score.to_numpy(),
+            "dynamic_hedge_ratio": beta_series.to_numpy(),
             "position": position.to_numpy(),
             "gross_return": gross_return.to_numpy(),
             "turnover": turnover.to_numpy(),
@@ -215,6 +301,9 @@ def backtest_pair(
         "annualized_sharpe": sharpe,
         "maximum_drawdown": float(daily["drawdown"].min()),
         "total_transaction_cost": float(daily["transaction_cost"].sum()),
+        "minimum_entry_days_remaining": int(minimum_entry_days_remaining),
+        "hedge_ratio_mode": hedge_ratio_mode,
+        "hedge_lookback_days": int(hedge_lookback_days),
     }
     return metrics, daily, trades
 

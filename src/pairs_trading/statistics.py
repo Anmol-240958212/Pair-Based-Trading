@@ -21,6 +21,14 @@ def _half_life(spread: pd.Series) -> float:
     return float(-np.log(2) / coefficient)
 
 
+def _ols_relationship(log_left: pd.Series, log_right: pd.Series) -> tuple[float, float]:
+    design = np.column_stack([np.ones(len(log_right)), log_right.to_numpy()])
+    intercept, hedge_ratio = np.linalg.lstsq(
+        design, log_left.to_numpy(), rcond=None
+    )[0]
+    return float(intercept), float(hedge_ratio)
+
+
 def analyze_pair(
     prices: pd.DataFrame,
     left_code: int,
@@ -44,8 +52,7 @@ def analyze_pair(
 
     log_left = np.log(matrix[left_code].astype(float))
     log_right = np.log(matrix[right_code].astype(float))
-    design = np.column_stack([np.ones(len(matrix)), log_right.to_numpy()])
-    intercept, hedge_ratio = np.linalg.lstsq(design, log_left.to_numpy(), rcond=None)[0]
+    intercept, hedge_ratio = _ols_relationship(log_left, log_right)
     spread = log_left - intercept - hedge_ratio * log_right
     coint_statistic, p_value, critical_values = coint(
         log_left, log_right, trend="c", autolag="aic"
@@ -70,6 +77,33 @@ def analyze_pair(
         johansen_passes_5pct = False
     standard_deviation = float(spread.std(ddof=1))
     z_score = (spread - spread.mean()) / standard_deviation if standard_deviation > 0 else np.nan
+
+    # Stability diagnostics use only the formation period. They describe whether
+    # the fitted relationship was already drifting before the trading window.
+    midpoint = len(matrix) // 2
+    _, first_half_beta = _ols_relationship(
+        log_left.iloc[:midpoint], log_right.iloc[:midpoint]
+    )
+    _, second_half_beta = _ols_relationship(
+        log_left.iloc[midpoint:], log_right.iloc[midpoint:]
+    )
+    beta_drift = abs(second_half_beta - first_half_beta) / max(
+        abs(hedge_ratio), 1e-8
+    )
+    mean_shift = abs(spread.iloc[midpoint:].mean() - spread.iloc[:midpoint].mean())
+    mean_shift /= max(standard_deviation, 1e-8)
+    recent_length = min(126, max(20, len(spread) // 3))
+    earlier_spread = spread.iloc[:-recent_length]
+    recent_spread = spread.iloc[-recent_length:]
+    earlier_volatility = float(earlier_spread.diff().std(ddof=1))
+    recent_volatility = float(recent_spread.diff().std(ddof=1))
+    volatility_ratio = (
+        recent_volatility / earlier_volatility
+        if earlier_volatility > 0
+        else float("nan")
+    )
+    centered = spread - spread.mean()
+    zero_crossings = int((np.sign(centered).diff().abs() == 2).sum())
 
     detail = pd.DataFrame(
         {
@@ -103,6 +137,10 @@ def analyze_pair(
         "johansen_passes_5pct": johansen_passes_5pct,
         "spread_half_life_days": _half_life(spread),
         "latest_z_score": float(detail["z_score"].iloc[-1]),
+        "formation_hedge_ratio_drift": float(beta_drift),
+        "formation_spread_mean_shift": float(mean_shift),
+        "formation_spread_volatility_ratio": float(volatility_ratio),
+        "formation_zero_crossing_rate": float(zero_crossings / len(spread)),
     }
     return metrics, detail
 

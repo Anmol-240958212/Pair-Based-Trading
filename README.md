@@ -84,6 +84,47 @@ python scripts/compare_ml_models.py
 That comparison trains on 2018–2019 completed outcomes and validates on
 2020–2021. It deliberately leaves 2022 onward unused for final testing.
 
+## Reproduce Experiment 2
+
+Experiment 2 is a post-hoc development study and does not replace the frozen
+test above. It adds boundary-safe entries, past-only rolling hedge ratios,
+structural-stability features, separate reversion and return models, and
+volatility-aware sizing.
+
+```powershell
+python scripts/build_experiment2_events.py
+python scripts/run_experiment2.py
+python scripts/build_experiment2_trade_paths.py
+python scripts/evaluate_experiment2.py
+```
+
+The fixed-hedge validation ablation can be reproduced separately:
+
+```powershell
+python scripts/build_experiment2_events.py --hedge-mode fixed --output-prefix experiment2_fixed
+python scripts/run_experiment2.py --input-prefix experiment2_fixed --output-prefix experiment2_fixed --validation-only
+```
+
+The experiment reduced loss and drawdown but remained unprofitable. Completed
+2026H2 or later observations are reserved for a genuinely fresh future test.
+
+## Reproduce Experiment 3
+
+Experiment 3 relaxes formation coverage to 90% and builds one labelled sample
+per eligible pair-day rather than one sample per completed historical trade.
+
+```powershell
+python scripts/build_experiment3_daily_panel.py
+python scripts/run_experiment3.py
+python scripts/evaluate_experiment3.py
+```
+
+The target records whether a net 1% take-profit barrier occurs before a -2%
+stop over the following 20 trading days. Logistic Regression and histogram
+Gradient Boosting are evaluated chronologically. The small positive Logistic
+development result is not statistically significant and must be tested on new
+completed data before being treated as evidence of profitability.
+
 ## Open the notebook
 
 ```powershell

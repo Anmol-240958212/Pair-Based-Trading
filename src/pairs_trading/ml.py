@@ -50,6 +50,18 @@ FEATURE_COLUMNS = [
     "minimum_pair_median_turnover",
 ]
 
+EXPERIMENT2_FEATURE_COLUMNS = FEATURE_COLUMNS + [
+    "formation_hedge_ratio_drift",
+    "formation_spread_mean_shift",
+    "formation_spread_volatility_ratio",
+    "formation_zero_crossing_rate",
+    "recent_absolute_z_mean_20d",
+    "recent_z_volatility_20d",
+    "recent_z_volatility_ratio_20d_60d",
+    "recent_zero_crossing_rate_60d",
+    "dynamic_hedge_ratio_drift",
+]
+
 
 def _consecutive_true_count(condition: pd.Series) -> pd.Series:
     groups = (~condition.fillna(False)).cumsum()
@@ -127,6 +139,28 @@ def build_labeled_events(
     history["right_return_volatility_20d"] = right_return.rolling(
         20, min_periods=10
     ).std(ddof=1)
+    history["recent_absolute_z_mean_20d"] = history["z_score"].rolling(
+        20, min_periods=10
+    ).mean().abs()
+    history["recent_z_volatility_20d"] = history["z_score"].rolling(
+        20, min_periods=10
+    ).std(ddof=1)
+    z_volatility_60d = history["z_score"].rolling(60, min_periods=30).std(ddof=1)
+    history["recent_z_volatility_ratio_20d_60d"] = (
+        history["recent_z_volatility_20d"] / z_volatility_60d
+    )
+    signs = np.sign(history["z_score"])
+    history["recent_zero_crossing_rate_60d"] = (
+        signs.diff().abs().eq(2).rolling(60, min_periods=20).mean()
+    )
+    if "dynamic_hedge_ratio" in history:
+        history["dynamic_hedge_ratio_drift"] = (
+            history["dynamic_hedge_ratio"]
+            / max(abs(float(formation_metrics["hedge_ratio"])), 1e-8)
+            - np.sign(float(formation_metrics["hedge_ratio"]))
+        ).abs()
+    else:
+        history["dynamic_hedge_ratio_drift"] = 0.0
     signal_features = history.set_index("date")
 
     records: list[dict[str, object]] = []
@@ -159,6 +193,18 @@ def build_labeled_events(
                 "spread_half_life_days": float(
                     formation_metrics["spread_half_life_days"]
                 ),
+                "formation_hedge_ratio_drift": float(
+                    formation_metrics.get("formation_hedge_ratio_drift", np.nan)
+                ),
+                "formation_spread_mean_shift": float(
+                    formation_metrics.get("formation_spread_mean_shift", np.nan)
+                ),
+                "formation_spread_volatility_ratio": float(
+                    formation_metrics.get("formation_spread_volatility_ratio", np.nan)
+                ),
+                "formation_zero_crossing_rate": float(
+                    formation_metrics.get("formation_zero_crossing_rate", np.nan)
+                ),
                 "spread_change_volatility_20d": float(
                     signal["spread_change_volatility_20d"]
                 ),
@@ -181,6 +227,21 @@ def build_labeled_events(
                 ),
                 "right_return_volatility_20d": float(
                     signal["right_return_volatility_20d"]
+                ),
+                "recent_absolute_z_mean_20d": float(
+                    signal["recent_absolute_z_mean_20d"]
+                ),
+                "recent_z_volatility_20d": float(
+                    signal["recent_z_volatility_20d"]
+                ),
+                "recent_z_volatility_ratio_20d_60d": float(
+                    signal["recent_z_volatility_ratio_20d_60d"]
+                ),
+                "recent_zero_crossing_rate_60d": float(
+                    signal["recent_zero_crossing_rate_60d"]
+                ),
+                "dynamic_hedge_ratio_drift": float(
+                    signal["dynamic_hedge_ratio_drift"]
                 ),
                 "exit_reason": trade.exit_reason,
                 "trade_net_return": float(trade.net_return),

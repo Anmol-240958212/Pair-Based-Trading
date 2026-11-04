@@ -99,14 +99,14 @@ def _trade_log(
 
         trade_slice = daily.iloc[entry_index : exit_index + 1]
         trade_return = float((1.0 + trade_slice["net_return"]).prod() - 1.0)
+        signal_index = max(entry_index - 1, 0)
         records.append(
             {
+                "signal_date": daily.iloc[signal_index]["date"],
                 "entry_date": daily.iloc[entry_index]["date"],
                 "exit_date": daily.iloc[exit_index]["date"],
                 "direction": "Long spread" if direction == 1 else "Short spread",
-                "entry_z_score": float(daily.iloc[entry_index - 1]["z_score"])
-                if entry_index > 0
-                else float(daily.iloc[entry_index]["z_score"]),
+                "entry_z_score": float(daily.iloc[signal_index]["z_score"]),
                 "exit_z_score": float(daily.iloc[last_held_index]["z_score"]),
                 "holding_days": int(last_held_index - entry_index + 1),
                 "exit_reason": exit_reason,

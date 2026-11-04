@@ -1,0 +1,2 @@
+approved_trades,observed_ml_mean_return,random_filter_mean_return,random_filter_95pct_lower,random_filter_95pct_upper,one_sided_p_value,repetitions
+61,0.0018742575670007845,-0.001855102824331765,-0.011971095909846725,0.008841686444083816,0.24237576242375763,10000

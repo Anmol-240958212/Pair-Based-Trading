@@ -10,13 +10,43 @@
 - Generated economically similar candidate pairs within the same industry.
 - Implemented Engle–Granger cointegration testing, hedge-ratio estimation,
   spread z-scores and mean-reversion half-life calculations.
-- Built a Streamlit interface for selecting periods, industries and company
-  pairs and viewing interactive formation-period diagnostics.
+- Replaced Streamlit with a React/TypeScript/Plotly.js interface backed by a
+  read-only FastAPI service.
+- Added overview, robust pair-screening, on-demand pair diagnostics, formation
+  and trading charts, trade logs, locked-test results, regime comparison, cost
+  sensitivity and methodology views.
 - Implemented an out-of-sample baseline pairs-trading backtest with next-day
   execution, transaction costs, entry and exit thresholds, stop-losses,
   maximum holding periods and trade-level results.
 - Added a Jupyter notebook that uses the same reusable Python research code.
 - Added automated tests for signal timing, stop-loss resets and exits.
+- Added leakage-safe event labelling: every completed divergence trade becomes
+  one ML row whose features are frozen on the signal date and whose later
+  outcome supplies the binary target.
+- Added chronological comparison pipelines for Logistic Regression, Decision
+  Tree and Bagging Decision Trees.
+- Generated 561 labelled divergence events from 17 completed semiannual
+  trading windows (2018H1–2026H1); 153 satisfy the initial successful-reversion
+  and after-cost profitability target, while 408 do not.
+- Kept the incomplete 2026H2 period out of the labelled dataset.
+- Added reverse-direction Engle-Granger tests, conservative bidirectional
+  p-values, Benjamini-Hochberg FDR correction and Johansen confirmation.
+- Added point-in-time pair, market, industry, volatility, momentum, divergence
+  duration and liquidity features.
+- Froze the validation-selected specification before evaluating 2022 onward:
+  bidirectional Engle-Granger plus Johansen, Logistic Regression, profitability
+  target and a 0.60 approval threshold.
+- Completed the locked 2022H1-2026H1 walk-forward test and a ten-slot portfolio
+  simulation with company-overlap controls and 5/10/20 bps cost sensitivity.
+- Added a 10,000-run within-window permutation test. The ML filter's event-level
+  improvement was not statistically significant (one-sided p = 0.242).
+- Added API coverage to the automated suite; all 12 Python tests pass and the
+  strict TypeScript production build succeeds.
+- Documented that each annual workbook represents that year's F&O-company
+  universe and that the supplied equity prices are corporate-action adjusted.
+- Defined the empirical scope as adjusted underlying equities belonging to the
+  F&O universe; futures rolls, margins and lot sizes are intentionally outside
+  scope rather than silently approximated.
 
 ## Initial Finding
 
@@ -27,8 +57,8 @@ while ABB–Siemens and Hindalco–National Aluminium were not.
 
 ## Next Steps
 
-- Complete the formal data-quality and static-company coverage audit.
-- Extend the baseline test into a full rolling walk-forward backtest.
-- Construct labelled divergence events and ML features.
-- Train and validate the ML signal-filtering model without look-ahead leakage.
-- Compare the baseline and ML-filtered strategies across market regimes.
+- Write the formal paper around the frozen methodology and negative-but-useful
+  out-of-sample result.
+- Add exact intra-year F&O entry/removal dates if that source becomes available.
+- Treat any future feature or classifier changes as a new experiment; do not
+  retune against the already-opened 2022H1-2026H1 test period.

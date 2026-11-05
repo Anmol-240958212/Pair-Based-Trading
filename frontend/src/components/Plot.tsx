@@ -4,10 +4,11 @@ import type { Data, Layout } from "plotly.js";
 interface Props {
   data: Data[];
   title: string;
+  description?: string;
   layout?: Partial<Layout>;
 }
 
-export function Plot({ data, title, layout = {} }: Props) {
+export function Plot({ data, title, description, layout = {} }: Props) {
   return (
     <div className="chart-card">
       <PlotlyChart
@@ -27,6 +28,7 @@ export function Plot({ data, title, layout = {} }: Props) {
         useResizeHandler
         style={{ width: "100%", height: "100%" }}
       />
+      {description && <p className="chart-explanation">{description}</p>}
     </div>
   );
 }

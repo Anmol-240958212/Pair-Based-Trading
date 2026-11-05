@@ -12,6 +12,15 @@ from sklearn.metrics import accuracy_score, brier_score_loss, roc_auc_score
 
 from pairs_trading.backtest import backtest_pair
 from pairs_trading.data import load_price_data, load_static_data, price_data_audit
+from pairs_trading.experiment3_config import (
+    PREDICTION_HORIZON_DAYS as FINAL_HORIZON_DAYS,
+    STOP_LOSS_RETURN as FINAL_STOP_LOSS_RETURN,
+    TAKE_PROFIT_RETURN as FINAL_TAKE_PROFIT_RETURN,
+    TRANSACTION_COST_BPS as FINAL_TRANSACTION_COST_BPS,
+)
+from pairs_trading.experiment5_config import (
+    PROBABILITY_THRESHOLD as FINAL_PROBABILITY_THRESHOLD,
+)
 from pairs_trading.research_config import (
     CLASSIFIER_NAME,
     CLASSIFIER_TARGET,
@@ -124,6 +133,158 @@ def walkforward_summary() -> pd.DataFrame:
     return frame
 
 
+@lru_cache(maxsize=1)
+def final_model_predictions() -> pd.DataFrame:
+    """Frozen three-day Markov-Logistic walk-forward predictions."""
+    frame = pd.read_parquet(PROCESSED / "experiment5_delay_3_predictions.parquet")
+    for column in ["trigger_date", "signal_date", "entry_date", "exit_date"]:
+        frame[column] = pd.to_datetime(frame[column])
+    return frame
+
+
+@lru_cache(maxsize=1)
+def final_model_trades() -> pd.DataFrame:
+    """Trades selected after model approval and portfolio-capacity controls."""
+    frame = pd.read_parquet(PROCESSED / "experiment5_delay_3_trades.parquet")
+    for column in ["trigger_date", "signal_date", "entry_date", "exit_date"]:
+        frame[column] = pd.to_datetime(frame[column])
+    return frame
+
+
+def final_model_pair_analysis(
+    window_id: str, left_code: int, right_code: int
+) -> dict[str, Any]:
+    """Explain the frozen final-model decisions for one pair and window."""
+    predictions = final_model_predictions()
+    rows = predictions.loc[
+        predictions["window_id"].eq(window_id)
+        & predictions["left_code"].eq(left_code)
+        & predictions["right_code"].eq(right_code)
+    ].copy()
+    executed = final_model_trades().loc[
+        final_model_trades()["window_id"].eq(window_id)
+        & final_model_trades()["left_code"].eq(left_code)
+        & final_model_trades()["right_code"].eq(right_code)
+    ].copy()
+
+    config = {
+        "model": "Two-state Gaussian Markov regime filter + class-balanced Logistic Regression",
+        "observation_days": 3,
+        "probability_threshold": FINAL_PROBABILITY_THRESHOLD,
+        "take_profit_return": FINAL_TAKE_PROFIT_RETURN,
+        "stop_loss_return": FINAL_STOP_LOSS_RETURN,
+        "maximum_holding_days": FINAL_HORIZON_DAYS,
+        "transaction_cost_bps_per_side": FINAL_TRANSACTION_COST_BPS,
+        "mandatory_news_veto": False,
+    }
+    if rows.empty:
+        window_year = int(window_id[:4]) if len(window_id) >= 4 else 0
+        reason = (
+            "outside_post_2022_evaluation_period"
+            if window_year < 2022
+            else "no_three_day_candidate_signals"
+        )
+        return {
+            "available": False,
+            "reason": reason,
+            "config": config,
+            "summary": {
+                "candidate_signals": 0,
+                "confirmation_passed": 0,
+                "probability_passed": 0,
+                "approved_signals": 0,
+                "executed_trades": 0,
+                "profitable_trades": 0,
+                "win_rate": None,
+                "compounded_pair_return": 0.0,
+                "average_trade_return": None,
+                "average_holding_days": None,
+            },
+            "signals": [],
+            "trades": [],
+            "equity_series": [],
+        }
+
+    executed_ids = set(executed["event_id"])
+    rows["probability_passed"] = rows["predicted_probability"].ge(
+        FINAL_PROBABILITY_THRESHOLD
+    )
+    rows["executed"] = rows["event_id"].isin(executed_ids)
+    rows["decision"] = np.select(
+        [
+            ~rows["passes_confirmation"].astype(bool),
+            ~rows["probability_passed"],
+            rows["executed"],
+            rows["approved"].astype(bool),
+        ],
+        [
+            "rejected_confirmation",
+            "rejected_probability",
+            "executed",
+            "approved_not_selected",
+        ],
+        default="not_approved",
+    )
+
+    if executed.empty:
+        compounded_return = 0.0
+        win_rate = None
+        average_return = None
+        average_holding = None
+        profitable_trades = 0
+        equity_series: list[dict[str, Any]] = []
+    else:
+        executed = executed.sort_values(["exit_date", "entry_date"])
+        compounded_return = float((1.0 + executed["trade_net_return"]).prod() - 1.0)
+        profitable_trades = int(executed["profitable"].sum())
+        win_rate = float(executed["profitable"].mean())
+        average_return = float(executed["trade_net_return"].mean())
+        average_holding = float(executed["holding_days"].mean())
+        equity = 1.0
+        equity_series = []
+        for trade in executed.itertuples(index=False):
+            equity *= 1.0 + float(trade.trade_net_return)
+            equity_series.append(
+                {"date": trade.exit_date, "net_equity": equity, "event_id": trade.event_id}
+            )
+
+    signal_columns = [
+        "event_id", "trigger_date", "signal_date", "entry_date", "exit_date",
+        "direction", "initial_z_score", "entry_z_score", "absolute_z_convergence",
+        "same_direction_fraction", "factor_alignment_fraction",
+        "lead_lag_agreement_fraction", "maximum_standardized_idiosyncratic_shock",
+        "markov_high_volatility_probability", "markov_favorable_probability",
+        "predicted_probability", "passes_confirmation", "probability_passed",
+        "approved", "executed", "decision", "barrier_outcome",
+        "trade_net_return", "holding_days",
+    ]
+    trade_columns = [
+        "event_id", "trigger_date", "signal_date", "entry_date", "exit_date",
+        "direction", "initial_z_score", "entry_z_score", "predicted_probability",
+        "barrier_outcome", "trade_net_return", "profitable", "holding_days",
+    ]
+    return {
+        "available": True,
+        "reason": None,
+        "config": config,
+        "summary": {
+            "candidate_signals": int(len(rows)),
+            "confirmation_passed": int(rows["passes_confirmation"].sum()),
+            "probability_passed": int(rows["probability_passed"].sum()),
+            "approved_signals": int(rows["approved"].sum()),
+            "executed_trades": int(len(executed)),
+            "profitable_trades": profitable_trades,
+            "win_rate": win_rate,
+            "compounded_pair_return": compounded_return,
+            "average_trade_return": average_return,
+            "average_holding_days": average_holding,
+        },
+        "signals": rows[signal_columns].sort_values("signal_date").to_dict(orient="records"),
+        "trades": executed[trade_columns].to_dict(orient="records"),
+        "equity_series": equity_series,
+    }
+
+
 def selected_screen(frame: pd.DataFrame, specification: str) -> pd.DataFrame:
     allowed = {
         "forward",
@@ -207,6 +368,31 @@ def pairs_for_window(
     if industry:
         frame = frame.loc[frame["industry"].eq(industry)]
     frame = selected_screen(frame, specification)
+    model_rows = final_model_predictions().loc[
+        final_model_predictions()["window_id"].eq(window_id)
+    ]
+    model_counts = (
+        model_rows.groupby(["left_code", "right_code"], as_index=False)
+        .agg(
+            model_candidate_signals=("event_id", "size"),
+            model_approved_signals=("approved", "sum"),
+        )
+    )
+    trade_rows = final_model_trades().loc[
+        final_model_trades()["window_id"].eq(window_id)
+    ]
+    trade_counts = (
+        trade_rows.groupby(["left_code", "right_code"], as_index=False)
+        .size()
+        .rename(columns={"size": "model_executed_trades"})
+    )
+    frame = frame.merge(model_counts, on=["left_code", "right_code"], how="left")
+    frame = frame.merge(trade_counts, on=["left_code", "right_code"], how="left")
+    for column in [
+        "model_candidate_signals", "model_approved_signals", "model_executed_trades"
+    ]:
+        frame[column] = frame[column].fillna(0).astype(int)
+    frame["model_available"] = frame["model_candidate_signals"].gt(0)
     columns = [
         "window_id",
         "industry",
@@ -224,8 +410,17 @@ def pairs_for_window(
         "spread_half_life_days",
         "latest_z_score",
         "minimum_pair_median_turnover",
+        "model_available",
+        "model_candidate_signals",
+        "model_approved_signals",
+        "model_executed_trades",
     ]
-    return frame_records(frame[columns].sort_values("cointegration_p_value"))
+    return frame_records(
+        frame[columns].sort_values(
+            ["model_executed_trades", "model_approved_signals", "model_candidate_signals", "cointegration_p_value"],
+            ascending=[False, False, False, True],
+        )
+    )
 
 
 def pair_analysis(
@@ -277,6 +472,7 @@ def pair_analysis(
             "backtest_metrics": backtest_metrics,
             "trading_series": daily.to_dict(orient="records"),
             "trades": trades.to_dict(orient="records"),
+            "final_model": final_model_pair_analysis(window_id, left_code, right_code),
         }
     )
 

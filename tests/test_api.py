@@ -37,6 +37,31 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    def test_pair_list_prioritises_final_model_activity(self):
+        response = self.client.get(
+            "/api/pairs",
+            params={
+                "window_id": "2022H1",
+                "specification": "bidirectional_johansen",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()
+        self.assertGreater(rows[0]["model_executed_trades"], 0)
+        self.assertTrue(rows[0]["model_available"])
+
+    def test_pair_analysis_contains_frozen_final_model_decisions(self):
+        response = self.client.get("/api/pairs/2022H1/2806/18286")
+        self.assertEqual(response.status_code, 200)
+        model = response.json()["final_model"]
+        self.assertTrue(model["available"])
+        self.assertEqual(model["config"]["observation_days"], 3)
+        self.assertEqual(model["config"]["probability_threshold"], 0.6)
+        self.assertEqual(model["config"]["take_profit_return"], 0.01)
+        self.assertEqual(model["config"]["stop_loss_return"], -0.02)
+        self.assertEqual(model["summary"]["executed_trades"], 6)
+        self.assertEqual(len(model["equity_series"]), 6)
+
     def test_experiment2_is_labelled_post_hoc(self):
         response = self.client.get("/api/results/experiment2")
         self.assertEqual(response.status_code, 200)

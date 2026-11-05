@@ -40,7 +40,7 @@
   simulation with company-overlap controls and 5/10/20 bps cost sensitivity.
 - Added a 10,000-run within-window permutation test. The ML filter's event-level
   improvement was not statistically significant (one-sided p = 0.242).
-- Added API coverage to the automated suite; all 12 Python tests pass and the
+- Added API coverage to the automated suite; all 27 Python tests pass and the
   strict TypeScript production build succeeds.
 - Documented that each annual workbook represents that year's F&O-company
   universe and that the supplied equity prices are corporate-action adjusted.
@@ -93,6 +93,10 @@
   selected by 2020-2021 validation and remained strongest later. At 10 bps,
   symmetric +/-0.5% returned +0.70% and symmetric +/-1% returned +0.97%, both
   below the existing rule's +2.48%.
+- Integrated the selected Markov-regime Logistic strategy into Pair Explorer.
+  The interface now prioritises pairs with saved model activity and displays
+  the three-day confirmation funnel, 0.60 probability decision, executed
+  trades, pair-level realised equity and the classical baseline side by side.
 
 ## Initial Finding
 

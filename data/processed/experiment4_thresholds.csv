@@ -1,0 +1,5 @@
+model,selected_threshold
+logistic_regression,0.6
+shrinkage_lda,0.6
+gaussian_naive_bayes,0.6
+markov_regime_logistic,0.6

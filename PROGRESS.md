@@ -64,6 +64,35 @@
 - The Experiment 3 Logistic portfolio is slightly positive at 10 bps (+0.89%,
   Sharpe 0.155, drawdown -2.85%) but negative at 20 bps and statistically
   insignificant under a moving-block bootstrap (p = 0.388).
+- Added Experiment 4 comparing shrinkage Linear Discriminant Analysis,
+  Gaussian Naive Bayes and a two-state Gaussian Markov regime filter combined
+  with Logistic Regression on the unchanged daily panel.
+- The Markov-regime portfolio is the best mathematical-model variant at 10 bps
+  (+1.31%, Sharpe 0.222, drawdown -2.80%, 149 trades), improving on ordinary
+  Logistic. It is negative at 20 bps and remains statistically insignificant
+  under the moving-block bootstrap (p = 0.328).
+- Added Experiment 5 with zero-, one- and three-day observation periods plus
+  common-factor alignment, lead-lag, abnormal turnover, idiosyncratic shock and
+  spread-acceleration confirmation features.
+- Validation on 2020-2021 selected immediate entry, so the confirmation idea
+  was not supported by the predeclared selection period. As a post-2022
+  diagnostic, the three-day rule produced 67 trades, +2.48% at 10 bps, +1.12%
+  at 20 bps, Sharpe 0.721, drawdown -0.78% and bootstrap p = 0.033. This is a
+  promising rule to freeze and test on new data, not a fresh confirmed result.
+- Downloaded 118,480 timestamped NSE corporate announcements covering 111 of
+  the 112 companies in the three-day study; MCX returned no archive records and
+  is excluded from like-for-like news comparisons rather than treated as having
+  no news.
+- Added Experiment 6 using announcements broadcast during the three-day
+  trigger-to-confirmation interval. A one-sided material-event veto reduced
+  executed trades from 67 to 41, improved later win rate from 65.7% to 68.3%
+  and drawdown from -0.78% to -0.51%, but reduced 10-bps return from +2.48% to
+  +2.16% and slightly worsened validation mean return.
+- Added Experiment 7 with fully rebuilt labels for +1%/-2%, symmetric +/-0.5%,
+  symmetric +/-1% and +1.5%/-1% payoff rules. The original +1%/-2% barrier was
+  selected by 2020-2021 validation and remained strongest later. At 10 bps,
+  symmetric +/-0.5% returned +0.70% and symmetric +/-1% returned +0.97%, both
+  below the existing rule's +2.48%.
 
 ## Initial Finding
 

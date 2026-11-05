@@ -53,6 +53,38 @@ class ApiTests(unittest.TestCase):
             "post_hoc_daily_panel_development_not_locked_holdout",
         )
 
+    def test_experiment4_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment4")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_mathematical_model_development_not_locked_holdout",
+        )
+
+    def test_experiment5_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment5")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_confirmation_study_not_locked_holdout",
+        )
+
+    def test_experiment6_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment6")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_nse_announcement_veto_not_locked_holdout",
+        )
+
+    def test_experiment7_is_labelled_post_hoc(self):
+        response = self.client.get("/api/results/experiment7")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["interpretation"],
+            "post_hoc_payoff_barrier_study_not_locked_holdout",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

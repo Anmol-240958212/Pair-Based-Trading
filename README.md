@@ -125,6 +125,69 @@ Gradient Boosting are evaluated chronologically. The small positive Logistic
 development result is not statistically significant and must be tested on new
 completed data before being treated as evidence of profitability.
 
+## Reproduce Experiment 4
+
+Experiment 4 compares alternative mathematical classifiers on the unchanged
+Experiment 3 panel: shrinkage Linear Discriminant Analysis, Gaussian Naive
+Bayes and a two-state Gaussian Markov regime filter combined with Logistic
+Regression.
+
+```powershell
+python scripts/run_experiment4.py
+python scripts/evaluate_experiment4.py
+```
+
+The Markov filter estimates high-volatility and historically favourable states
+from past market and industry variables using Gaussian emissions and a
+one-sided forward filter. All models use the same fixed 0.60 approval cutoff.
+At 10 bps, Markov plus Logistic returned 1.31% with a 0.22 Sharpe, but the
+bootstrap p-value was 0.328 and the result turned negative at 20 bps.
+
+## Reproduce Experiment 5
+
+Experiment 5 tests whether waiting for common-factor and spread confirmation
+reduces false-positive reversion trades. It compares immediate entry with one-
+and three-trading-day observation periods.
+
+```powershell
+python scripts/build_experiment5_confirmation_panel.py
+python scripts/run_experiment5.py
+python scripts/evaluate_experiment5.py
+```
+
+Confirmation uses same-direction movement, industry-factor alignment,
+lead-lag agreement, abnormal turnover, industry-adjusted residual shocks and
+whether the absolute spread z-score has stopped accelerating outward. The
+three-day diagnostic returned 2.48% at 10 bps and 1.12% at 20 bps, with a
+bootstrap p-value of 0.033. However, the pre-2022 validation period selected
+zero delay, so the three-day result is a new candidate rule rather than a
+validated profitability claim.
+
+## Reproduce Experiments 6 and 7
+
+Experiment 6 downloads timestamped NSE corporate announcements for the 112
+companies appearing in the three-day study and applies a one-sided material-
+event veto over the trigger-to-confirmation interval `[-3, 0]`.
+
+```powershell
+python scripts/build_experiment6_nse_news.py
+python scripts/run_experiment6_news_veto.py
+```
+
+Experiment 7 rebuilds exits and labels before comparing the existing +1%/-2%
+net barrier with symmetric +/-0.5%, symmetric +/-1% and +1.5%/-1% rules.
+
+```powershell
+python scripts/build_experiment7_barrier_panels.py
+python scripts/run_experiment7.py
+python scripts/evaluate_experiment7.py
+```
+
+The news veto improved later win rate and drawdown but reduced total return and
+did not improve 2020-2021 validation. Symmetric barriers remained profitable
+in the later diagnostic but underperformed the validation-selected +1%/-2%
+rule because tighter stops frequently closed spreads before eventual reversion.
+
 ## Open the notebook
 
 ```powershell

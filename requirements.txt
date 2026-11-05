@@ -9,4 +9,5 @@ jupyterlab>=4.2
 fastapi>=0.115
 uvicorn[standard]>=0.32
 httpx>=0.27
+requests>=2.32
 

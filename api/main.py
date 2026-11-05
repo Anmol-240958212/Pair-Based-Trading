@@ -138,6 +138,26 @@ def experiment3():
     return services.experiment3_results()
 
 
+@app.get("/api/results/experiment4")
+def experiment4():
+    return services.experiment4_results()
+
+
+@app.get("/api/results/experiment5")
+def experiment5():
+    return services.experiment5_results()
+
+
+@app.get("/api/results/experiment6")
+def experiment6():
+    return services.experiment6_results()
+
+
+@app.get("/api/results/experiment7")
+def experiment7():
+    return services.experiment7_results()
+
+
 @app.get("/api/config")
 def config():
     return services.research_config()

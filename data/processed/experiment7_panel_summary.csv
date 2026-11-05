@@ -1,0 +1,5 @@
+configuration,take_profit_return,stop_loss_return,rows,positive_targets,positive_target_rate
+target_1_stop_2,0.01,-0.02,16961,9220,0.5436000235835151
+symmetric_0_5,0.005,-0.005,16961,7173,0.4229113849419256
+symmetric_1_0,0.01,-0.01,16961,7331,0.4322268734154826
+target_1_5_stop_1,0.015,-0.01,16961,6116,0.3605919462295855

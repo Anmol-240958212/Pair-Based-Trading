@@ -131,6 +131,125 @@ The Logistic result is positive at 5 and 10 bps but negative at 20 bps. A
 The result is therefore promising as a filtering improvement but is neither
 cost-robust nor statistically significant and is not a fresh holdout.
 
+## Experiment 4: mathematical and regime-model comparison
+
+Experiment 4 leaves the Experiment 3 rows, targets, walk-forward periods,
+portfolio constraints and costs unchanged. It compares ordinary Logistic
+Regression against three alternative mathematical specifications:
+
+- shrinkage Linear Discriminant Analysis, which estimates class-specific
+  centres with a regularised shared covariance matrix;
+- Gaussian Naive Bayes, which models each feature conditionally as an
+  independent Gaussian within each outcome class;
+- a two-state Gaussian Markov filter whose market and industry emissions are
+  estimated on past dates, with state transitions estimated from the training
+  sequence, followed by a one-sided forward filter and Logistic Regression.
+
+The Markov probabilities measure the probability of the higher-volatility
+state and the historically more favourable reversion state. They are computed
+chronologically: future observations do not revise earlier state estimates.
+Every classifier uses the same pre-declared 0.60 probability cutoff. Models are
+refitted before each half-year using only labels completed before that window.
+
+At 10 bps per position change, the post-2022 development results are:
+
+| Strategy | Trades | Total return | Sharpe | Maximum drawdown |
+|---|---:|---:|---:|---:|
+| Logistic Regression | 140 | +0.89% | 0.155 | -2.85% |
+| Shrinkage LDA | 528 | -1.26% | -0.095 | -4.97% |
+| Gaussian Naive Bayes | 668 | -4.90% | -0.364 | -10.83% |
+| Markov regime + Logistic | 149 | +1.31% | 0.222 | -2.80% |
+
+The Markov variant is the best development model, but it loses 1.63% at 20
+bps and its 20-day moving-block bootstrap p-value is 0.328. It therefore does
+not establish statistically reliable profitability and still requires a new
+completed holdout period.
+
+## Experiment 5: delayed common-factor confirmation
+
+Experiment 5 tests whether the model should observe a divergence before
+trading. Candidate observation periods are zero, one and three trading days.
+For delayed candidates, the eventual signal and entry dates are shifted
+forward; labels and returns begin only after the later entry, preventing the
+observation interval from being counted as tradable profit.
+
+The confirmation layer records same-direction movement, alignment with the
+pair's industry return, one-day lead-lag sign agreement, the share of movement
+attributable to the common industry factor, abnormal turnover, standardized
+industry-residual shocks and the change in absolute spread z-score. A delayed
+signal passes the economic gate only when at least half of observed stock
+moves share a direction, at least one-third align with the industry factor, no
+standardized idiosyncratic shock exceeds four and the spread has not
+accelerated outward by more than 0.25 z-score units.
+
+The 2020-2021 validation period selected zero delay: its approved mean return
+was 0.310%, compared with 0.162% for one day and 0.247% for three days. Thus,
+the originally defined selection procedure did not support waiting.
+
+The later post-2022 diagnostic nevertheless produced:
+
+| Observation | Trades | Return at 10 bps | Sharpe | Drawdown | Bootstrap p |
+|---|---:|---:|---:|---:|---:|
+| 0 days | 150 | +1.42% | 0.240 | -2.69% | 0.314 |
+| 1 day | 80 | +0.08% | 0.024 | -2.76% | 0.483 |
+| 3 days | 67 | +2.48% | 0.721 | -0.78% | 0.033 |
+
+The three-day version also remained positive at 20 bps (+1.12%). This is the
+strongest diagnostic result so far, but selecting it after viewing the
+post-2022 comparison would be post-hoc. It should be frozen as a candidate and
+tested on completed 2026H2 or later data before being adopted as the primary
+strategy.
+
+## Experiment 6: point-in-time NSE announcement veto
+
+Experiment 6 treats official exchange announcements as an event-risk feed,
+not as a directional trading model. Day zero is the confirmation/decision day;
+the interval `[-3, 0]` begins at the initial divergence trigger and includes
+only announcements broadcast by the decision date. Entry remains the next
+trading day. The archive contains 118,480 timestamped announcements covering
+111 of the 112 relevant companies. MCX returned no archive records, so rows
+involving it are excluded from both sides of the news comparison.
+
+Subjects and announcement text are classified with a frozen material-event
+dictionary covering results, board outcomes, acquisitions, contracts, credit
+ratings, management changes, defaults, litigation, regulatory events,
+insolvency, buybacks, dividends and restructuring. A trade is vetoed when a
+material event appears for exactly one pair member during the observation
+window. This deliberately uses news as a structural-break warning rather than
+trying to infer a buy or sell direction from text.
+
+In 2020-2021 validation, the veto reduced approved mean return from 0.247% to
+0.225%, so it was not validation-supported. In the later diagnostic it reduced
+portfolio trades from 67 to 41, improved win rate from 65.7% to 68.3%, reduced
+drawdown from -0.78% to -0.51% and returned +2.16% at 10 bps and +1.33% at 20
+bps. This is a risk-control candidate, not a validated replacement rule.
+
+## Experiment 7: payoff barrier comparison
+
+Changing a stop changes which observations become positive labels and when
+those labels become available. Therefore, Experiment 7 reconstructs each
+future spread-return path, exit date, target and label-availability date before
+retraining the three-day Markov/Logistic model. The compared net barriers are
++1%/-2%, +/-0.5%, +/-1% and +1.5%/-1%.
+
+The 2020-2021 validation period retained +1%/-2%; its approved mean return was
+0.247%. The corresponding values were -0.127% for +/-0.5%, 0.004% for +/-1%
+and -0.074% for +1.5%/-1%.
+
+Later portfolio results at 10 bps were:
+
+| Net target / stop | Trades | Total return | Sharpe | Drawdown | Bootstrap p |
+|---|---:|---:|---:|---:|---:|
+| +1% / -2% | 67 | +2.48% | 0.721 | -0.78% | 0.033 |
+| +0.5% / -0.5% | 30 | +0.70% | 0.340 | -0.72% | 0.183 |
+| +1% / -1% | 44 | +0.97% | 0.410 | -0.77% | 0.175 |
+| +1.5% / -1% | 53 | +0.85% | 0.277 | -1.45% | 0.265 |
+
+Equal barriers are conceptually reasonable but did not improve this strategy.
+The tighter stops frequently closed temporarily widening spreads before their
+later reversion. The original asymmetric rule remains the selected candidate,
+subject to confirmation on genuinely new data.
+
 ## Scope and remaining data limitations
 
 - The study evaluates pairs trading in adjusted underlying equity prices for

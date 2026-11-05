@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import accuracy_score, brier_score_loss, roc_auc_score
 
 from pairs_trading.backtest import backtest_pair
 from pairs_trading.data import load_price_data, load_static_data, price_data_audit
@@ -48,6 +49,55 @@ def clean(value: Any) -> Any:
 
 def frame_records(frame: pd.DataFrame) -> list[dict[str, Any]]:
     return clean(frame.to_dict(orient="records"))
+
+
+def trade_statistics(filename: str) -> dict[str, Any]:
+    """Summarise selected trades for display without duplicating calculations in React."""
+    trades = pd.read_parquet(PROCESSED / filename)
+    winners = trades.loc[trades["trade_net_return"].gt(0), "trade_net_return"]
+    losers = trades.loc[trades["trade_net_return"].le(0), "trade_net_return"]
+    loss_total = abs(float(losers.sum()))
+    outcomes = trades["barrier_outcome"].value_counts()
+    return clean(
+        {
+            "trades": int(len(trades)),
+            "profitable_trades": int(trades["profitable"].sum()),
+            "win_rate": float(trades["profitable"].mean()),
+            "target_rate": float(trades["target"].mean()),
+            "take_profit_hits": int(outcomes.get("take_profit", 0)),
+            "stop_loss_hits": int(outcomes.get("stop_loss", 0)),
+            "horizon_exits": int(outcomes.get("horizon", 0)),
+            "mean_trade_return": float(trades["trade_net_return"].mean()),
+            "median_trade_return": float(trades["trade_net_return"].median()),
+            "average_winner": float(winners.mean()),
+            "average_loser": float(losers.mean()),
+            "profit_factor": float(winners.sum() / loss_total) if loss_total else None,
+            "average_holding_days": float(trades["holding_days"].mean()),
+            "median_holding_days": float(trades["holding_days"].median()),
+        }
+    )
+
+
+def prediction_statistics(filename: str, sample: str) -> dict[str, Any]:
+    predictions = pd.read_parquet(PROCESSED / filename)
+    probability = predictions["predicted_probability"]
+    approved = predictions["approved"].astype(bool)
+    return clean(
+        {
+            "sample": sample,
+            "rows": int(len(predictions)),
+            "roc_auc": float(roc_auc_score(predictions["target"], probability)),
+            "brier_score": float(brier_score_loss(predictions["target"], probability)),
+            "accuracy_at_0_5": float(
+                accuracy_score(predictions["target"], probability.ge(0.5))
+            ),
+            "approved_rows": int(approved.sum()),
+            "approved_target_rate": float(predictions.loc[approved, "target"].mean()),
+            "approved_profit_rate": float(
+                predictions.loc[approved, "profitable"].mean()
+            ),
+        }
+    )
 
 
 @lru_cache(maxsize=1)
@@ -301,5 +351,92 @@ def experiment3_results() -> dict[str, Any]:
             "windows": pd.read_csv(
                 PROCESSED / "experiment3_window_summary.csv"
             ).to_dict(orient="records"),
+        }
+    )
+
+
+def experiment4_results() -> dict[str, Any]:
+    """Return mathematical-model comparisons as a post-hoc development study."""
+    return clean(
+        {
+            "interpretation": "post_hoc_mathematical_model_development_not_locked_holdout",
+            "validation": pd.read_csv(PROCESSED / "experiment4_validation.csv").to_dict(orient="records"),
+            "thresholds": pd.read_csv(PROCESSED / "experiment4_thresholds.csv").to_dict(orient="records"),
+            "comparison": pd.read_csv(PROCESSED / "experiment4_comparison.csv").to_dict(orient="records"),
+            "portfolio": pd.read_csv(PROCESSED / "experiment4_portfolio.csv").to_dict(orient="records"),
+            "significance": pd.read_csv(PROCESSED / "experiment4_significance.csv").to_dict(orient="records"),
+            "windows": pd.read_csv(PROCESSED / "experiment4_window_summary.csv").to_dict(orient="records"),
+        }
+    )
+
+
+def experiment5_results() -> dict[str, Any]:
+    """Return delayed-confirmation results with validation selection disclosed."""
+    return clean(
+        {
+            "interpretation": "post_hoc_confirmation_study_not_locked_holdout",
+            "validation": pd.read_csv(PROCESSED / "experiment5_validation.csv").to_dict(orient="records"),
+            "comparison": pd.read_csv(PROCESSED / "experiment5_comparison.csv").to_dict(orient="records"),
+            "portfolio": pd.read_csv(PROCESSED / "experiment5_portfolio.csv").to_dict(orient="records"),
+            "significance": pd.read_csv(PROCESSED / "experiment5_significance.csv").to_dict(orient="records"),
+            "windows": pd.read_csv(PROCESSED / "experiment5_window_summary.csv").to_dict(orient="records"),
+            "three_day_trade_statistics": trade_statistics(
+                "experiment5_delay_3_trades.parquet"
+            ),
+            "three_day_model_statistics": [
+                prediction_statistics(
+                    "experiment5_delay_3_validation_predictions.parquet",
+                    "2020-2021 validation",
+                ),
+                prediction_statistics(
+                    "experiment5_delay_3_predictions.parquet", "post-2022 diagnostic"
+                ),
+            ],
+        }
+    )
+
+
+def experiment6_results() -> dict[str, Any]:
+    """Return the point-in-time NSE announcement veto comparison."""
+    announcements = pd.read_parquet(PROCESSED / "experiment6_nse_announcements.parquet")
+    return clean(
+        {
+            "interpretation": "post_hoc_nse_announcement_veto_not_locked_holdout",
+            "announcement_rows": int(len(announcements)),
+            "covered_companies": int(announcements["capitaline_code"].nunique()),
+            "comparison": pd.read_csv(PROCESSED / "experiment6_comparison.csv").to_dict(orient="records"),
+            "portfolio": pd.read_csv(PROCESSED / "experiment6_portfolio.csv").to_dict(orient="records"),
+            "significance": pd.read_csv(PROCESSED / "experiment6_significance.csv").to_dict(orient="records"),
+            "without_news_trade_statistics": trade_statistics(
+                "experiment6_approved_without_news_trades.parquet"
+            ),
+            "with_news_trade_statistics": trade_statistics(
+                "experiment6_approved_with_news_veto_trades.parquet"
+            ),
+        }
+    )
+
+
+def experiment7_results() -> dict[str, Any]:
+    """Return the alternative payoff-barrier comparison."""
+    return clean(
+        {
+            "interpretation": "post_hoc_payoff_barrier_study_not_locked_holdout",
+            "validation": pd.read_csv(PROCESSED / "experiment7_validation.csv").to_dict(orient="records"),
+            "comparison": pd.read_csv(PROCESSED / "experiment7_comparison.csv").to_dict(orient="records"),
+            "portfolio": pd.read_csv(PROCESSED / "experiment7_portfolio.csv").to_dict(orient="records"),
+            "significance": pd.read_csv(PROCESSED / "experiment7_significance.csv").to_dict(orient="records"),
+            "trade_statistics": [
+                {
+                    "configuration": configuration,
+                    **trade_statistics(f"experiment7_{configuration}_trades.parquet"),
+                }
+                for configuration in [
+                    "target_1_stop_2",
+                    "symmetric_0_5",
+                    "symmetric_1_0",
+                    "target_1_5_stop_1",
+                ]
+            ],
         }
     )
